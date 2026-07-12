@@ -1,55 +1,28 @@
-/*
-=====================================================================
- PROGRAM ANALISIS JARINGAN WIFI
-=====================================================================
- Fitur:
- 1. Scan jaringan WiFi sekitar
- 2. Analisis kekuatan sinyal (RSSI) - SELECTION SORT
- 3. Rekomendasi kanal terbaik
- 4. Informasi jaringan - LINEAR SEARCH (cari SSID)
- 5. Exit
-
- CATATAN:
- - Fitur scan berjalan di Windows karena memakai perintah "netsh wlan show networks"
- - Compile: g++ "Wifi Analyze.cpp" -o wifi_analyze.exe
- - Jika hasil scan kosong, jalankan CMD sebagai Administrator
-=====================================================================
-*/
-
 #include <iostream>
 #include <vector>
 #include <string>
 #include <sstream>
 #include <algorithm>
 #include <cstdio>
-
-#ifdef _WIN32
-#define BUKA_PIPE _popen
-#define TUTUP_PIPE _pclose
-#else
-#define BUKA_PIPE popen
-#define TUTUP_PIPE pclose
-#endif
+#include <cctype>
+#include <iomanip>
 
 using namespace std;
 
-// ---------------- STRUKTUR DATA ----------------
 struct Wifi {
     string ssid;
     string bssid;
     string keamanan;
     int channel;
-    int sinyal;   // dalam persen (0-100)
-    int rssi;     // perkiraan dBm
-    string band;  // 2.4 GHz / 5 GHz
+    int sinyal;
+    int rssi;
+    string band;
 };
 
-// ---------------- FUNGSI BANTU ----------------
-
-// Mengubah string angka jadi int, kalau gagal kembalikan 0
 int toIntSafe(string s) {
     int hasil = 0;
-    for (char c : s) {
+    for (size_t i = 0; i < s.length(); i++) {
+        char c = s[i];
         if (isdigit((unsigned char)c)) {
             hasil = hasil * 10 + (c - '0');
         }
@@ -57,30 +30,26 @@ int toIntSafe(string s) {
     return hasil;
 }
 
-// Mengambil teks setelah tanda ":"
 string ambilSetelahTitikDua(const string &baris) {
     size_t pos = baris.find(":");
     if (pos == string::npos) return "";
     string hasil = baris.substr(pos + 1);
-    // hapus spasi di awal/akhir
     size_t awal = hasil.find_first_not_of(" \t\r\n");
     size_t akhir = hasil.find_last_not_of(" \t\r\n");
     if (awal == string::npos) return "";
     return hasil.substr(awal, akhir - awal + 1);
 }
 
-// Menentukan band berdasarkan nomor kanal
 string tentukanBand(int channel) {
     if (channel >= 1 && channel <= 14) return "2.4 GHz";
     if (channel >= 32) return "5 GHz";
     return "Unknown";
 }
 
-// ---------------- FITUR 1: SCAN WIFI ----------------
 vector<Wifi> scanWifi() {
     vector<Wifi> daftar;
 
-    FILE* pipe = BUKA_PIPE("netsh wlan show networks mode=bssid", "r");
+    FILE* pipe = _popen("netsh wlan show networks mode=bssid", "r");
     if (!pipe) {
         cout << "Gagal menjalankan scan WiFi.\n";
         return daftar;
@@ -91,14 +60,13 @@ vector<Wifi> scanWifi() {
     while (fgets(buffer, sizeof(buffer), pipe)) {
         outputSemua += buffer;
     }
-    TUTUP_PIPE(pipe);
+    _pclose(pipe);
 
     istringstream iss(outputSemua);
     string baris;
     string ssidSekarang, authSekarang;
 
     while (getline(iss, baris)) {
-        // hapus spasi di awal baris untuk mempermudah pengecekan
         size_t awal = baris.find_first_not_of(" \t\r\n");
         string trim = (awal == string::npos) ? "" : baris.substr(awal);
 
@@ -134,7 +102,6 @@ vector<Wifi> scanWifi() {
     return daftar;
 }
 
-// ---------------- FITUR 2: SELECTION SORT ----------------
 void sortBySinyal(vector<Wifi> &daftar) {
     int n = daftar.size();
     for (int i = 0; i < n - 1; i++) {
@@ -148,23 +115,21 @@ void sortBySinyal(vector<Wifi> &daftar) {
     }
 }
 
-// ---------------- FITUR 4 (pendukung): LINEAR SEARCH ----------------
 int cariSSID(const vector<Wifi> &daftar, const string &keyword) {
     for (int i = 0; i < (int)daftar.size(); i++) {
         if (daftar[i].ssid.find(keyword) != string::npos) {
-            return i; // ditemukan, kembalikan posisinya
+            return i;
         }
     }
-    return -1; // tidak ditemukan
+    return -1;
 }
 
-// ---------------- FITUR 3: REKOMENDASI KANAL ----------------
 void rekomendasiKanal(const vector<Wifi> &daftar) {
-    int hitung24[15] = {0}; // kanal 1-14
+    int hitung24[15] = {0};
 
-    for (const auto &w : daftar) {
-        if (w.band == "2.4 GHz" && w.channel >= 1 && w.channel <= 14) {
-            hitung24[w.channel]++;
+    for (size_t i = 0; i < daftar.size(); i++) {
+        if (daftar[i].band == "2.4 GHz" && daftar[i].channel >= 1 && daftar[i].channel <= 14) {
+            hitung24[daftar[i].channel]++;
         }
     }
 
@@ -175,7 +140,6 @@ void rekomendasiKanal(const vector<Wifi> &daftar) {
         }
     }
 
-    // kanal 1, 6, 11 tidak saling overlap (standar)
     int kanalTerbaik = 1;
     int jumlahMin = hitung24[1];
     if (hitung24[6] < jumlahMin)  { jumlahMin = hitung24[6];  kanalTerbaik = 6; }
@@ -185,17 +149,35 @@ void rekomendasiKanal(const vector<Wifi> &daftar) {
          << " (hanya " << jumlahMin << " jaringan memakainya)\n";
 }
 
-// ---------------- TAMPILAN ----------------
+string potongTeks(const string &teks, size_t panjang) {
+    if (teks.length() <= panjang) return teks;
+    if (panjang <= 3) return teks.substr(0, panjang);
+    return teks.substr(0, panjang - 3) + "...";
+}
+
 void tampilkanTabel(const vector<Wifi> &daftar) {
-    cout << "\nNo  SSID                      Sinyal  Kanal  Band      Keamanan\n";
-    cout << "----------------------------------------------------------------\n";
+    cout << "\n+----+----------------------------------+--------+-------+----------+----------------------+\n";
+    cout << "| " << left << setw(2) << "No"
+         << " | " << setw(32) << "SSID"
+         << " | " << setw(6) << "Sinyal"
+         << " | " << setw(5) << "Kanal"
+         << " | " << setw(8) << "Band"
+         << " | " << setw(20) << "Keamanan" << " |\n";
+    cout << "+----+----------------------------------+--------+-------+----------+----------------------+\n";
+
     for (size_t i = 0; i < daftar.size(); i++) {
-        cout << (i + 1) << ". " << daftar[i].ssid
-             << "\t" << daftar[i].sinyal << "%"
-             << "\t" << daftar[i].channel
-             << "\t" << daftar[i].band
-             << "\t" << daftar[i].keamanan << "\n";
+        ostringstream sinyal;
+        sinyal << daftar[i].sinyal << "%";
+
+        cout << "| " << left << setw(2) << (i + 1)
+             << " | " << setw(32) << potongTeks(daftar[i].ssid, 32)
+             << " | " << setw(6) << sinyal.str()
+             << " | " << setw(5) << daftar[i].channel
+             << " | " << setw(8) << potongTeks(daftar[i].band, 8)
+             << " | " << setw(20) << potongTeks(daftar[i].keamanan, 20) << " |\n";
     }
+
+    cout << "+----+----------------------------------+--------+-------+----------+----------------------+\n";
     cout << "\nTotal jaringan: " << daftar.size() << "\n";
 }
 
@@ -211,7 +193,6 @@ void tampilkanDetail(const Wifi &w) {
     cout << "------------------------------\n";
 }
 
-// ---------------- PROGRAM UTAMA ----------------
 int main() {
     vector<Wifi> daftarWifi;
     int pilihan;
