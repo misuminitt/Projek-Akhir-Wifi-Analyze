@@ -19,7 +19,7 @@ struct Wifi {
     string band;
 };
 
-int toIntSafe(string s) {
+int konversiAngkakeInt(string s) {
     int hasil = 0;
     for (size_t i = 0; i < s.length(); i++) {
         char c = s[i];
@@ -30,7 +30,7 @@ int toIntSafe(string s) {
     return hasil;
 }
 
-string ambilSetelahTitikDua(const string &baris) {
+string ambilteksSeteleahtitikdua(const string &baris) {
     size_t pos = baris.find(":");
     if (pos == string::npos) return "";
     string hasil = baris.substr(pos + 1);
@@ -40,7 +40,7 @@ string ambilSetelahTitikDua(const string &baris) {
     return hasil.substr(awal, akhir - awal + 1);
 }
 
-string tentukanBand(int channel) {
+string band(int channel) {
     if (channel >= 1 && channel <= 14) return "2.4 GHz";
     if (channel >= 32) return "5 GHz";
     return "Unknown";
@@ -51,7 +51,7 @@ vector<Wifi> scanWifi() {
 
     FILE* pipe = _popen("netsh wlan show networks mode=bssid", "r");
     if (!pipe) {
-        cout << "Gagal menjalankan scan WiFi.\n";
+        cout << "Gagal menjalankan scan WiFi\n";
         return daftar;
     }
 
@@ -71,15 +71,15 @@ vector<Wifi> scanWifi() {
         string trim = (awal == string::npos) ? "" : baris.substr(awal);
 
         if (trim.rfind("SSID", 0) == 0 && trim.find(":") != string::npos) {
-            ssidSekarang = ambilSetelahTitikDua(trim);
+            ssidSekarang = ambilteksSeteleahtitikdua(trim);
         }
         else if (trim.rfind("Authentication", 0) == 0) {
-            authSekarang = ambilSetelahTitikDua(trim);
+            authSekarang = ambilteksSeteleahtitikdua(trim);
         }
         else if (trim.rfind("BSSID", 0) == 0 && trim.find(":") != string::npos) {
             Wifi w;
-            w.ssid = ssidSekarang.empty() ? "(Tersembunyi)" : ssidSekarang;
-            w.bssid = ambilSetelahTitikDua(trim);
+            w.ssid = ssidSekarang.empty() ? "(Hidden)" : ssidSekarang;
+            w.bssid = ambilteksSeteleahtitikdua(trim);
             w.keamanan = authSekarang;
             w.channel = 0;
             w.sinyal = 0;
@@ -88,14 +88,14 @@ vector<Wifi> scanWifi() {
             daftar.push_back(w);
         }
         else if (trim.rfind("Signal", 0) == 0 && !daftar.empty()) {
-            string nilai = ambilSetelahTitikDua(trim);
-            daftar.back().sinyal = toIntSafe(nilai);
+            string nilai = ambilteksSeteleahtitikdua(trim);
+            daftar.back().sinyal = konversiAngkakeInt(nilai);
             daftar.back().rssi = (daftar.back().sinyal / 2) - 100;
         }
         else if (trim.rfind("Channel", 0) == 0 && !daftar.empty()) {
-            string nilai = ambilSetelahTitikDua(trim);
-            daftar.back().channel = toIntSafe(nilai);
-            daftar.back().band = tentukanBand(daftar.back().channel);
+            string nilai = ambilteksSeteleahtitikdua(trim);
+            daftar.back().channel = konversiAngkakeInt(nilai);
+            daftar.back().band = band(daftar.back().channel);
         }
     }
 
@@ -124,7 +124,7 @@ int cariSSID(const vector<Wifi> &daftar, const string &keyword) {
     return -1;
 }
 
-void rekomendasiKanal(const vector<Wifi> &daftar) {
+void rekomendasiChannel(const vector<Wifi> &daftar) {
     int hitung24[15] = {0};
 
     for (size_t i = 0; i < daftar.size(); i++) {
@@ -133,19 +133,19 @@ void rekomendasiKanal(const vector<Wifi> &daftar) {
         }
     }
 
-    cout << "\n=== Kepadatan Kanal 2.4 GHz ===\n";
+    cout << "\n=== Kepadatan Channel 2.4 GHz ===\n";
     for (int ch = 1; ch <= 13; ch++) {
         if (hitung24[ch] > 0) {
-            cout << "Kanal " << ch << " : " << hitung24[ch] << " jaringan\n";
+            cout << "Channel " << ch << " : " << hitung24[ch] << " jaringan\n";
         }
     }
 
-    int kanalTerbaik = 1;
+    int ChannelTerbaik = 1;
     int jumlahMin = hitung24[1];
-    if (hitung24[6] < jumlahMin)  { jumlahMin = hitung24[6];  kanalTerbaik = 6; }
-    if (hitung24[11] < jumlahMin) { jumlahMin = hitung24[11]; kanalTerbaik = 11; }
+    if (hitung24[6] < jumlahMin)  { jumlahMin = hitung24[6];  ChannelTerbaik = 6; }
+    if (hitung24[11] < jumlahMin) { jumlahMin = hitung24[11]; ChannelTerbaik = 11; }
 
-    cout << "\n>> Rekomendasi kanal terbaik (2.4 GHz): Kanal " << kanalTerbaik
+    cout << "\n>> Rekomendasi Channel terbaik (2.4 GHz): Channel " << ChannelTerbaik
          << " (hanya " << jumlahMin << " jaringan memakainya)\n";
 }
 
@@ -156,14 +156,14 @@ string potongTeks(const string &teks, size_t panjang) {
 }
 
 void tampilkanTabel(const vector<Wifi> &daftar) {
-    cout << "\n+----+----------------------------------+--------+-------+----------+----------------------+\n";
+    cout << "\n+----+----------------------------------+--------+---------+----------+----------------------+\n";
     cout << "| " << left << setw(2) << "No"
          << " | " << setw(32) << "SSID"
          << " | " << setw(6) << "Sinyal"
-         << " | " << setw(5) << "Kanal"
+         << " | " << setw(7) << "Channel"
          << " | " << setw(8) << "Band"
          << " | " << setw(20) << "Keamanan" << " |\n";
-    cout << "+----+----------------------------------+--------+-------+----------+----------------------+\n";
+    cout << "+----+----------------------------------+--------+---------+----------+----------------------+\n";
 
     for (size_t i = 0; i < daftar.size(); i++) {
         ostringstream sinyal;
@@ -172,12 +172,12 @@ void tampilkanTabel(const vector<Wifi> &daftar) {
         cout << "| " << left << setw(2) << (i + 1)
              << " | " << setw(32) << potongTeks(daftar[i].ssid, 32)
              << " | " << setw(6) << sinyal.str()
-             << " | " << setw(5) << daftar[i].channel
+             << " | " << setw(7) << daftar[i].channel
              << " | " << setw(8) << potongTeks(daftar[i].band, 8)
              << " | " << setw(20) << potongTeks(daftar[i].keamanan, 20) << " |\n";
     }
 
-    cout << "+----+----------------------------------+--------+-------+----------+----------------------+\n";
+    cout << "+----+----------------------------------+--------+---------+----------+----------------------+\n";
     cout << "\nTotal jaringan: " << daftar.size() << "\n";
 }
 
@@ -186,7 +186,7 @@ void tampilkanDetail(const Wifi &w) {
     cout << "SSID      : " << w.ssid << "\n";
     cout << "BSSID     : " << w.bssid << "\n";
     cout << "Band      : " << w.band << "\n";
-    cout << "Kanal     : " << w.channel << "\n";
+    cout << "Channel   : " << w.channel << "\n";
     cout << "Keamanan  : " << w.keamanan << "\n";
     cout << "Sinyal    : " << w.sinyal << "%\n";
     cout << "RSSI      : " << w.rssi << " dBm\n";
@@ -203,7 +203,7 @@ int main() {
         cout << "========================================\n";
         cout << "1. Scan Jaringan WiFi\n";
         cout << "2. Analisis Kekuatan Sinyal\n";
-        cout << "3. Rekomendasi Kanal Terbaik\n";
+        cout << "3. Rekomendasi Channel Terbaik\n";
         cout << "4. Cari Jaringan (berdasarkan SSID)\n";
         cout << "5. Exit\n";
         cout << "========================================\n";
@@ -232,7 +232,7 @@ int main() {
             if (daftarWifi.empty()) {
                 cout << "\nScan WiFi dulu (menu 1).\n";
             } else {
-                rekomendasiKanal(daftarWifi);
+                rekomendasiChannel(daftarWifi);
             }
         }
         else if (pilihan == 4) {
