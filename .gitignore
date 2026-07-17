@@ -1,2 +1,3 @@
-*.ino
+arduno_backup.ino
+arduno_lama.ino
 *.py
