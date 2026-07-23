@@ -5,8 +5,6 @@
 #include <algorithm>
 #include <cstdio>
 #include <cctype>
-#include <iomanip>
-#include <windows.h>
 
 using namespace std;
 
@@ -156,26 +154,37 @@ string potongTeks(const string &teks, size_t panjang) {
     return teks.substr(0, panjang - 3) + "...";
 }
 
+string padKanan(const string &teks, size_t lebar) {
+    if (teks.length() >= lebar) return teks;
+    return teks + string(lebar - teks.length(), ' ');
+}
+
 void tampilkanTabel(const vector<Wifi> &daftar) {
     cout << "\n+----+----------------------------------+--------+---------+----------+----------------------+\n";
-    cout << "| " << left << setw(2) << "No"
-         << " | " << setw(32) << "SSID"
-         << " | " << setw(6) << "Sinyal"
-         << " | " << setw(7) << "Channel"
-         << " | " << setw(8) << "Band"
-         << " | " << setw(20) << "Keamanan" << " |\n";
+    cout << "| " << padKanan("No", 2)
+         << " | " << padKanan("SSID", 32)
+         << " | " << padKanan("Sinyal", 6)
+         << " | " << padKanan("Channel", 7)
+         << " | " << padKanan("Band", 8)
+         << " | " << padKanan("Keamanan", 20) << " |\n";
     cout << "+----+----------------------------------+--------+---------+----------+----------------------+\n";
 
     for (size_t i = 0; i < daftar.size(); i++) {
         ostringstream sinyal;
         sinyal << daftar[i].sinyal << "%";
 
-        cout << "| " << left << setw(2) << (i + 1)
-             << " | " << setw(32) << potongTeks(daftar[i].ssid, 32)
-             << " | " << setw(6) << sinyal.str()
-             << " | " << setw(7) << daftar[i].channel
-             << " | " << setw(8) << potongTeks(daftar[i].band, 8)
-             << " | " << setw(20) << potongTeks(daftar[i].keamanan, 20) << " |\n";
+        ostringstream nomor;
+        nomor << (i + 1);
+
+        ostringstream channel;
+        channel << daftar[i].channel;
+
+        cout << "| " << padKanan(nomor.str(), 2)
+             << " | " << padKanan(potongTeks(daftar[i].ssid, 32), 32)
+             << " | " << padKanan(sinyal.str(), 6)
+             << " | " << padKanan(channel.str(), 7)
+             << " | " << padKanan(potongTeks(daftar[i].band, 8), 8)
+             << " | " << padKanan(potongTeks(daftar[i].keamanan, 20), 20) << " |\n";
     }
 
     cout << "+----+----------------------------------+--------+---------+----------+----------------------+\n";
@@ -194,156 +203,6 @@ void tampilkanDetail(const Wifi &w) {
     cout << "------------------------------\n";
 }
 
-// Fungsi untuk memanggil ESP8266
-void panggilESP8266() {
-    cout << "\n=== Memanggil ESP8266 ===\n";
-    cout << "Membuka koneksi serial ke ESP8266...\n";
-    cout << "ESP8266 aktif (display mati untuk stealth mode)\n";
-    cout << "Memonitor status ESP8266...\n";
-    cout << "Tekan Ctrl+C untuk berhenti\n\n";
-    
-    // Membuka serial port (COM3 - sesuaikan dengan port ESP8266 Anda)
-    HANDLE hSerial = CreateFile("COM3", 
-                                GENERIC_READ,
-                                0,
-                                0,
-                                OPEN_EXISTING,
-                                FILE_ATTRIBUTE_NORMAL,
-                                0);
-    
-    if (hSerial == INVALID_HANDLE_VALUE) {
-        cout << "Gagal membuka port serial COM3.\n";
-        cout << "Pastikan ESP8266 terhubung dan sesuaikan port serial.\n";
-        return;
-    }
-    
-    DCB dcbSerialParams = {0};
-    dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
-    
-    if (!GetCommState(hSerial, &dcbSerialParams)) {
-        cout << "Gagal mendapatkan pengaturan serial.\n";
-        CloseHandle(hSerial);
-        return;
-    }
-    
-    dcbSerialParams.BaudRate = CBR_9600;
-    dcbSerialParams.ByteSize = 8;
-    dcbSerialParams.StopBits = ONESTOPBIT;
-    dcbSerialParams.Parity = NOPARITY;
-    
-    if (!SetCommState(hSerial, &dcbSerialParams)) {
-        cout << "Gagal mengatur parameter serial.\n";
-        CloseHandle(hSerial);
-        return;
-    }
-    
-    COMMTIMEOUTS timeouts = {0};
-    timeouts.ReadIntervalTimeout = 50;
-    timeouts.ReadTotalTimeoutConstant = 50;
-    timeouts.ReadTotalTimeoutMultiplier = 10;
-    timeouts.WriteTotalTimeoutConstant = 50;
-    timeouts.WriteTotalTimeoutMultiplier = 10;
-    
-    SetCommTimeouts(hSerial, &timeouts);
-    
-    char buffer[256];
-    DWORD bytesRead;
-    
-    cout << "Status ESP8266:\n";
-    cout << "---------------------------\n";
-    
-    for (int i = 0; i < 10; i++) {
-        if (ReadFile(hSerial, buffer, sizeof(buffer) - 1, &bytesRead, NULL)) {
-            if (bytesRead > 0) {
-                buffer[bytesRead] = '\0';
-                string output(buffer);
-                
-                // Bersihkan output
-                output.erase(remove(output.begin(), output.end(), '\r'), output.end());
-                output.erase(remove(output.begin(), output.end(), '\n'), output.end());
-                
-                if (output.find("GOOD") != string::npos) {
-                    cout << "[OK] ESP8266 Terhubung\n";
-                } else if (output.find("BAD") != string::npos) {
-                    cout << "[!] ESP8266 Terputus\n";
-                } else if (output.length() > 0) {
-                    cout << "[INFO] " << output << "\n";
-                }
-            }
-        }
-        Sleep(1000);
-    }
-    
-    cout << "\nESP8266 aktif dan berjalan di stealth mode.\n";
-    cout << "Display mati untuk menghindari deteksi.\n";
-    
-    CloseHandle(hSerial);
-}
-
-// Fungsi untuk menyalakan ESP8266
-void nyalakanESP8266() {
-    cout << "\n=== Menyalakan ESP8266 ===\n";
-    cout << "Mengirim perintah untuk menyalakan ESP8266...\n";
-    
-    // Membuka serial port untuk menulis
-    HANDLE hSerial = CreateFile("COM3", 
-                                GENERIC_WRITE,
-                                0,
-                                0,
-                                OPEN_EXISTING,
-                                FILE_ATTRIBUTE_NORMAL,
-                                0);
-    
-    if (hSerial == INVALID_HANDLE_VALUE) {
-        cout << "Gagal membuka port serial COM3.\n";
-        cout << "Pastikan ESP8266 terhubung dan sesuaikan port serial.\n";
-        return;
-    }
-    
-    DCB dcbSerialParams = {0};
-    dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
-    
-    if (!GetCommState(hSerial, &dcbSerialParams)) {
-        cout << "Gagal mendapatkan pengaturan serial.\n";
-        CloseHandle(hSerial);
-        return;
-    }
-    
-    dcbSerialParams.BaudRate = CBR_9600;
-    dcbSerialParams.ByteSize = 8;
-    dcbSerialParams.StopBits = ONESTOPBIT;
-    dcbSerialParams.Parity = NOPARITY;
-    
-    if (!SetCommState(hSerial, &dcbSerialParams)) {
-        cout << "Gagal mengatur parameter serial.\n";
-        CloseHandle(hSerial);
-        return;
-    }
-    
-    COMMTIMEOUTS timeouts = {0};
-    timeouts.ReadIntervalTimeout = 50;
-    timeouts.ReadTotalTimeoutConstant = 50;
-    timeouts.ReadTotalTimeoutMultiplier = 10;
-    timeouts.WriteTotalTimeoutConstant = 50;
-    timeouts.WriteTotalTimeoutMultiplier = 10;
-    
-    SetCommTimeouts(hSerial, &timeouts);
-    
-    // Mengirim perintah untuk menyalakan display
-    const char* command = "WAKEUP\n";
-    DWORD bytesWritten;
-    
-    if (WriteFile(hSerial, command, strlen(command), &bytesWritten, NULL)) {
-        cout << "Perintah terkirim: " << command;
-        cout << "ESP8266 akan menyala...\n";
-        cout << "Display akan aktif dalam beberapa detik.\n";
-    } else {
-        cout << "Gagal mengirim perintah ke ESP8266.\n";
-    }
-    
-    CloseHandle(hSerial);
-}
-
 int main() {
     vector<Wifi> daftarWifi;
     int pilihan;
@@ -356,9 +215,7 @@ int main() {
         cout << "2. Analisis Kekuatan Sinyal\n";
         cout << "3. Rekomendasi Channel Terbaik\n";
         cout << "4. Cari Jaringan (berdasarkan SSID)\n";
-        cout << "5. Panggil ESP8266 (Stealth Mode)\n";
-        cout << "6. Nyalakan ESP8266\n";
-        cout << "7. Exit\n";
+        cout << "5. Exit\n";
         cout << "========================================\n";
         cout << "Pilih menu: ";
         cin >> pilihan;
@@ -406,19 +263,13 @@ int main() {
             }
         }
         else if (pilihan == 5) {
-            panggilESP8266();
-        }
-        else if (pilihan == 6) {
-            nyalakanESP8266();
-        }
-        else if (pilihan == 7) {
             cout << "\nTerima kasih!\n";
         }
         else {
             cout << "\nPilihan tidak valid.\n";
         }
 
-    } while (pilihan != 7);
+    } while (pilihan != 5);
 
     return 0;
 }

@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cctype>
 #include <iomanip>
+#include <windows.h>
 
 using namespace std;
 
@@ -193,6 +194,156 @@ void tampilkanDetail(const Wifi &w) {
     cout << "------------------------------\n";
 }
 
+// Fungsi untuk memanggil ESP8266
+void panggilESP8266() {
+    cout << "\n=== Memanggil ESP8266 ===\n";
+    cout << "Membuka koneksi serial ke ESP8266...\n";
+    cout << "ESP8266 aktif (display mati untuk stealth mode)\n";
+    cout << "Memonitor status ESP8266...\n";
+    cout << "Tekan Ctrl+C untuk berhenti\n\n";
+    
+    // Membuka serial port (COM3 - sesuaikan dengan port ESP8266 Anda)
+    HANDLE hSerial = CreateFile("COM3", 
+                                GENERIC_READ,
+                                0,
+                                0,
+                                OPEN_EXISTING,
+                                FILE_ATTRIBUTE_NORMAL,
+                                0);
+    
+    if (hSerial == INVALID_HANDLE_VALUE) {
+        cout << "Gagal membuka port serial COM3.\n";
+        cout << "Pastikan ESP8266 terhubung dan sesuaikan port serial.\n";
+        return;
+    }
+    
+    DCB dcbSerialParams = {0};
+    dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
+    
+    if (!GetCommState(hSerial, &dcbSerialParams)) {
+        cout << "Gagal mendapatkan pengaturan serial.\n";
+        CloseHandle(hSerial);
+        return;
+    }
+    
+    dcbSerialParams.BaudRate = CBR_9600;
+    dcbSerialParams.ByteSize = 8;
+    dcbSerialParams.StopBits = ONESTOPBIT;
+    dcbSerialParams.Parity = NOPARITY;
+    
+    if (!SetCommState(hSerial, &dcbSerialParams)) {
+        cout << "Gagal mengatur parameter serial.\n";
+        CloseHandle(hSerial);
+        return;
+    }
+    
+    COMMTIMEOUTS timeouts = {0};
+    timeouts.ReadIntervalTimeout = 50;
+    timeouts.ReadTotalTimeoutConstant = 50;
+    timeouts.ReadTotalTimeoutMultiplier = 10;
+    timeouts.WriteTotalTimeoutConstant = 50;
+    timeouts.WriteTotalTimeoutMultiplier = 10;
+    
+    SetCommTimeouts(hSerial, &timeouts);
+    
+    char buffer[256];
+    DWORD bytesRead;
+    
+    cout << "Status ESP8266:\n";
+    cout << "---------------------------\n";
+    
+    for (int i = 0; i < 10; i++) {
+        if (ReadFile(hSerial, buffer, sizeof(buffer) - 1, &bytesRead, NULL)) {
+            if (bytesRead > 0) {
+                buffer[bytesRead] = '\0';
+                string output(buffer);
+                
+                // Bersihkan output
+                output.erase(remove(output.begin(), output.end(), '\r'), output.end());
+                output.erase(remove(output.begin(), output.end(), '\n'), output.end());
+                
+                if (output.find("GOOD") != string::npos) {
+                    cout << "[OK] ESP8266 Terhubung\n";
+                } else if (output.find("BAD") != string::npos) {
+                    cout << "[!] ESP8266 Terputus\n";
+                } else if (output.length() > 0) {
+                    cout << "[INFO] " << output << "\n";
+                }
+            }
+        }
+        Sleep(1000);
+    }
+    
+    cout << "\nESP8266 aktif dan berjalan di stealth mode.\n";
+    cout << "Display mati untuk menghindari deteksi.\n";
+    
+    CloseHandle(hSerial);
+}
+
+// Fungsi untuk menyalakan ESP8266
+void nyalakanESP8266() {
+    cout << "\n=== Menyalakan ESP8266 ===\n";
+    cout << "Mengirim perintah untuk menyalakan ESP8266...\n";
+    
+    // Membuka serial port untuk menulis
+    HANDLE hSerial = CreateFile("COM3", 
+                                GENERIC_WRITE,
+                                0,
+                                0,
+                                OPEN_EXISTING,
+                                FILE_ATTRIBUTE_NORMAL,
+                                0);
+    
+    if (hSerial == INVALID_HANDLE_VALUE) {
+        cout << "Gagal membuka port serial COM3.\n";
+        cout << "Pastikan ESP8266 terhubung dan sesuaikan port serial.\n";
+        return;
+    }
+    
+    DCB dcbSerialParams = {0};
+    dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
+    
+    if (!GetCommState(hSerial, &dcbSerialParams)) {
+        cout << "Gagal mendapatkan pengaturan serial.\n";
+        CloseHandle(hSerial);
+        return;
+    }
+    
+    dcbSerialParams.BaudRate = CBR_9600;
+    dcbSerialParams.ByteSize = 8;
+    dcbSerialParams.StopBits = ONESTOPBIT;
+    dcbSerialParams.Parity = NOPARITY;
+    
+    if (!SetCommState(hSerial, &dcbSerialParams)) {
+        cout << "Gagal mengatur parameter serial.\n";
+        CloseHandle(hSerial);
+        return;
+    }
+    
+    COMMTIMEOUTS timeouts = {0};
+    timeouts.ReadIntervalTimeout = 50;
+    timeouts.ReadTotalTimeoutConstant = 50;
+    timeouts.ReadTotalTimeoutMultiplier = 10;
+    timeouts.WriteTotalTimeoutConstant = 50;
+    timeouts.WriteTotalTimeoutMultiplier = 10;
+    
+    SetCommTimeouts(hSerial, &timeouts);
+    
+    // Mengirim perintah untuk menyalakan display
+    const char* command = "WAKEUP\n";
+    DWORD bytesWritten;
+    
+    if (WriteFile(hSerial, command, strlen(command), &bytesWritten, NULL)) {
+        cout << "Perintah terkirim: " << command;
+        cout << "ESP8266 akan menyala...\n";
+        cout << "Display akan aktif dalam beberapa detik.\n";
+    } else {
+        cout << "Gagal mengirim perintah ke ESP8266.\n";
+    }
+    
+    CloseHandle(hSerial);
+}
+
 int main() {
     vector<Wifi> daftarWifi;
     int pilihan;
@@ -205,7 +356,9 @@ int main() {
         cout << "2. Analisis Kekuatan Sinyal\n";
         cout << "3. Rekomendasi Channel Terbaik\n";
         cout << "4. Cari Jaringan (berdasarkan SSID)\n";
-        cout << "5. Exit\n";
+        cout << "5. Panggil ESP8266 (Stealth Mode)\n";
+        cout << "6. Nyalakan ESP8266\n";
+        cout << "7. Exit\n";
         cout << "========================================\n";
         cout << "Pilih menu: ";
         cin >> pilihan;
@@ -253,13 +406,19 @@ int main() {
             }
         }
         else if (pilihan == 5) {
+            panggilESP8266();
+        }
+        else if (pilihan == 6) {
+            nyalakanESP8266();
+        }
+        else if (pilihan == 7) {
             cout << "\nTerima kasih!\n";
         }
         else {
             cout << "\nPilihan tidak valid.\n";
         }
 
-    } while (pilihan != 5);
+    } while (pilihan != 7);
 
     return 0;
 }
