@@ -66,13 +66,14 @@ Program menghitung jumlah jaringan pada setiap channel 2.4 GHz, kemudian
 membandingkan channel 1, 6, dan 11. Channel dengan jumlah pemakai paling sedikit
 ditampilkan sebagai rekomendasi untuk mengurangi potensi interferensi.
 
-## Linear Search SSID
+## Binary Search SSID
 
 ![Pencarian SSID](docs/images/pencarian-ssid.jpg)
 
-Menu pencarian menggunakan algoritma **linear search**. Program memeriksa SSID
-satu per satu dan menampilkan detail SSID, BSSID, band, channel, keamanan,
-persentase sinyal, serta estimasi RSSI jika jaringan ditemukan.
+Menu pencarian menggunakan algoritma **binary search**. Sebelum pencarian,
+data WiFi diurutkan terlebih dahulu berdasarkan **SSID**, lalu program mencari
+SSID secara exact match dan menampilkan detail SSID, BSSID, band, channel,
+keamanan, persentase sinyal, serta estimasi RSSI jika jaringan ditemukan.
 
 ## Fitur
 
@@ -80,5 +81,5 @@ persentase sinyal, serta estimasi RSSI jika jaringan ditemukan.
 2. Menyimpan hasil scan menggunakan `vector`
 3. Mengurutkan sinyal menggunakan selection sort
 4. Memberikan rekomendasi channel 2.4 GHz
-5. Mencari SSID menggunakan linear search
+5. Mencari SSID menggunakan binary search
 6. Menampilkan estimasi RSSI dalam satuan dBm

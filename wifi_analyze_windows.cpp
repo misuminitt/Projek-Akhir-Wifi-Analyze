@@ -2,7 +2,6 @@
 #include <vector>
 #include <string>
 #include <sstream>
-#include <algorithm>
 #include <cstdio>
 #include <cctype>
 
@@ -101,6 +100,12 @@ vector<Wifi> scanWifi() {
     return daftar;
 }
 
+void manualSwap(Wifi &a, Wifi &b) {
+    Wifi sementara = a;
+    a = b;
+    b = sementara;
+}
+
 void sortBySinyal(vector<Wifi> &daftar) {
     int n = daftar.size();
     for (int i = 0; i < n - 1; i++) {
@@ -110,16 +115,41 @@ void sortBySinyal(vector<Wifi> &daftar) {
                 idxMax = j;
             }
         }
-        if (idxMax != i) swap(daftar[i], daftar[idxMax]);
+        if (idxMax != i) manualSwap(daftar[i], daftar[idxMax]);
+    }
+}
+
+void sortBySSID(vector<Wifi> &daftar) {
+    int n = daftar.size();
+    for (int i = 0; i < n - 1; i++) {
+        int idxMin = i;
+        for (int j = i + 1; j < n; j++) {
+            if (daftar[j].ssid < daftar[idxMin].ssid) {
+                idxMin = j;
+            }
+        }
+        if (idxMin != i) manualSwap(daftar[i], daftar[idxMin]);
     }
 }
 
 int cariSSID(const vector<Wifi> &daftar, const string &keyword) {
-    for (int i = 0; i < (int)daftar.size(); i++) {
-        if (daftar[i].ssid.find(keyword) != string::npos) {
-            return i;
+    int kiri = 0;
+    int kanan = static_cast<int>(daftar.size()) - 1;
+
+    while (kiri <= kanan) {
+        int tengah = kiri + (kanan - kiri) / 2;
+
+        if (daftar[tengah].ssid == keyword) {
+            return tengah;
+        }
+
+        if (daftar[tengah].ssid < keyword) {
+            kiri = tengah + 1;
+        } else {
+            kanan = tengah - 1;
         }
     }
+
     return -1;
 }
 
@@ -249,6 +279,7 @@ int main() {
             if (daftarWifi.empty()) {
                 cout << "\nScan WiFi dulu (menu 1).\n";
             } else {
+                sortBySSID(daftarWifi);
                 cout << "\nMasukkan SSID yang dicari: ";
                 string keyword;
                 cin.ignore();
@@ -258,6 +289,7 @@ int main() {
                 if (idx == -1) {
                     cout << "Jaringan tidak ditemukan.\n";
                 } else {
+                    cout << "\n=== Hasil pencarian (Binary Search) ===\n";
                     tampilkanDetail(daftarWifi[idx]);
                 }
             }
